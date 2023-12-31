@@ -12,7 +12,7 @@
 
 #define batVoltagePin A0
 
-#define SLEEP_FOR_MINUTES 15
+#define SLEEP_FOR_MINUTES 10
 
 Adafruit_BME280 bme;
 
@@ -20,11 +20,13 @@ float humidity, temperature, pressure, bat_voltage = 0;
 int avg_cycles = 0;
 
 // Change this to point to your Wifi Credentials
-const char *ssid = "<your-ssid";
-const char *password = "<your_password";
-
+const char *ssid = "<your-wifi>";
+const char *password = "<your-wifi-password>";
 // Your MQTT broker ID
-const char *mqttBroker = "192.168.0.xx";
+const char *mqttBroker = "192.168.xx.xx"; // IP address of your MQTT broker
+const char *mqttUser = "";                // user name and password for MQTT
+const char *mqttPassword = "";
+
 const int mqttPort = 1883;
 
 // MQTT topics
@@ -57,7 +59,7 @@ bool setup_wifi()
   Serial.print("Signal strength: ");
   Serial.println(WiFi.RSSI());
 
-  int connect_timeout = 15; // if it can't connect in 10 seconds give up
+  int connect_timeout = 10; // if it can't connect in 10 seconds give up
   while ((WiFi.status() != WL_CONNECTED) && (connect_timeout>0))
   {
     // read sensor while waiting for wifi
@@ -97,7 +99,7 @@ void reconnect()
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
-    if (client.connect(clientId.c_str()))
+    if (client.connect(clientId.c_str(), mqttUser, mqttPassword)) 
     {
       Serial.println("connected");
     }
@@ -201,7 +203,7 @@ void sendMQTTPressureDiscoveryMsg() {
   doc["stat_t"]   = stateTopic;
   doc["state_class"]= "measurement";
   doc["device_class"] = "pressure";
-  doc["unit_of_meas"] = "%";
+  doc["unit_of_meas"] = "hPa";
   doc["frc_upd"] = true;
   doc["value_template"] = "{{ value_json.pressure|default(0) }}";
   doc["uniq_id"] = publishTopic+String("_pressure");
@@ -280,11 +282,12 @@ void setup() {
   }
   client.loop();
 
-  if (resetReason != "Deep-Sleep Wake") {
+  //if (resetReason != "Deep-Sleep Wake") 
+  {
     Serial.println("First boot: sending autodiscovery...");
     send_autodiscovery();
-
   }
+  
 
 
 }
