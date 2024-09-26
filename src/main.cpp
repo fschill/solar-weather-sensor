@@ -4,6 +4,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
+
 #define LED 2
 
 #include "Adafruit_BME280.h"
@@ -12,20 +13,16 @@
 
 #define batVoltagePin A0
 
-#define SLEEP_FOR_MINUTES 10
+#define SLEEP_FOR_MINUTES 15
 
 Adafruit_BME280 bme;
 
 float humidity, temperature, pressure, bat_voltage = 0;
 int avg_cycles = 0;
 
-// Change this to point to your Wifi Credentials
-const char *ssid = "<your-wifi>";
-const char *password = "<your-wifi-password>";
-// Your MQTT broker ID
-const char *mqttBroker = "192.168.xx.xx"; // IP address of your MQTT broker
-const char *mqttUser = "";                // user name and password for MQTT
-const char *mqttPassword = "";
+
+#include "credentials.h"
+
 
 const int mqttPort = 1883;
 
@@ -292,6 +289,23 @@ void setup() {
 
 }
 
+void BME280_Sleep(int device_address) {
+  const uint8_t CTRL_MEAS_REG = 0xF4;
+  // BME280 Register 0xF4 (control measurement register) sets the device mode, specifically bits 1,0
+  // The bit positions are called 'mode[1:0]'. See datasheet Table 25 and Paragraph 3.3 for more detail.
+  // Mode[1:0]  Mode
+  //    00      'Sleep'  mode
+  //  01 / 10   'Forced' mode, use either '01' or '10'
+  //    11      'Normal' mode
+  Serial.println("BME280 to Sleep mode...");
+  Wire.beginTransmission(device_address);
+  Wire.requestFrom(device_address, 1);
+  uint8_t value = Wire.read();
+  value = (value & 0xFC) + 0x00;         // Clear bits 1 and 0
+  Wire.write((uint8_t)CTRL_MEAS_REG);    // Select Control Measurement Register
+  Wire.write((uint8_t)value);            // Send 'XXXXXX00' for Sleep mode
+  Wire.endTransmission();
+}
 
 void loop() {
 
@@ -327,6 +341,7 @@ void loop() {
 
 //  esp_sleep_enable_timer_wakeup(600*1000000); 
   Serial.println("Going to sleep now");
+  BME280_Sleep(BME280_ADDRESS);
   delay(50);
   Serial.flush(); 
   ESP.deepSleep(SLEEP_FOR_MINUTES*60*1e6);
